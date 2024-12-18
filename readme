@@ -1,0 +1,32 @@
+Syncal/
+├── config/
+│   ├── config.go
+│   └── config.yaml
+├── docs/
+│   └── swagger.yaml
+├── internal/            # Código interno del proyecto
+│   ├── auth/
+│   │   ├── jwt.go
+│   │   └── oauth.go     # Integración con Google OAuth 2.0
+│   ├── calendar/        # Lógica para integración con calendarios
+│   │   ├── google.go    # Cliente de Google Calendar
+│   │   ├── sync.go      # Lógica de sincronización
+│   │   └── utils.go
+│   ├── events/          # Gestión de eventos
+│   │   ├── handler.go
+│   │   ├── service.go
+│   │   └── repository.go
+│   ├── notifications/   # Notificaciones y recordatorios
+│   │   ├── email.go
+│   │   └── push.go
+│   └── users/           # Gestión de usuarios
+│       ├── handler.go
+│       ├── service.go
+│       └── repository.go
+├── test/                # Pruebas unitarias e integrales
+│   ├── integration/     # Pruebas de integración
+│   ├── unit/            # Pruebas unitarias
+│   └── mocks/           # Mocks para pruebas
+├── go.mod               # Archivo de dependencias de Go
+├── go.sum               # Checksum de dependencias
+└── README.md
