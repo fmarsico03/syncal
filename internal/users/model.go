@@ -1,9 +1,9 @@
 package users
 
 type User struct {
-	name     string `json:"name"`
-	lastname string `json:"lastname"`
-	mail     string `json:"mail"`
+	name     string
+	lastname string
+	mail     string
 }
 
 func (u User) Lastname() string {
@@ -22,7 +22,7 @@ func (u *User) SetName(name string) {
 	u.name = name
 }
 
-func (u *User) Mail() string {
+func (u User) Mail() string {
 	return u.mail
 }
 
@@ -33,15 +33,3 @@ func (u *User) SetMail(mail string) {
 func NewUser(name string, lastname string, mail string) *User {
 	return &User{name: name, lastname: lastname, mail: mail}
 }
-
-/*
-type Participant struct {
-	user   User
-	event  events.Event
-	attend bool
-}
-
-func NewParticipant(user User, event events.Event, attend bool) *Participant {
-	return &Participant{user: user, event: event, attend: attend}
-}
-*/

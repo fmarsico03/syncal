@@ -1,8 +1,8 @@
 package events
 
 import (
+	"github.com/pelletier/go-toml/v2"
 	"syncal/internal/users"
-	"time"
 )
 
 type Event struct {
@@ -11,31 +11,15 @@ type Event struct {
 	location    string
 	description string
 	meetLink    string
-	start       time.Time
-	end         time.Time
-}
-
-func (e *Event) End() time.Time {
-	return e.end
-}
-
-func (e *Event) SetEnd(end time.Time) {
-	e.end = end
-}
-
-func (e *Event) Start() time.Time {
-	return e.start
-}
-
-func (e *Event) SetStart(start time.Time) {
-	e.start = start
+	start       toml.LocalDateTime
+	end         toml.LocalDateTime
 }
 
 func NewEvent() *Event {
 	return &Event{}
 }
 
-func NewEventComplete(title string, createdBy users.User, start, end time.Time) *Event {
+func NewEventComplete(title string, createdBy users.User, start, end toml.LocalDateTime) *Event {
 	return &Event{title: title, createdBy: createdBy, start: start, end: end}
 }
 

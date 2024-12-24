@@ -4,12 +4,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"syncal/internal/events"
+	"syncal/internal/events/handler"
 )
 
 func main() {
 
 	var repository []events.Event
-	handlerEvent := events.NewHandlerEvent(repository)
+	handlerEvent := handler.NewHandlerEvent(repository)
 
 	router := gin.Default()
 
