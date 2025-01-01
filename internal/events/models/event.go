@@ -1,26 +1,18 @@
-package events
+package models
 
 import (
 	"github.com/pelletier/go-toml/v2"
-	"syncal/internal/users"
+	"syncal/internal/users/models"
 )
 
 type Event struct {
-	title       string
-	createdBy   users.User
-	location    string
-	description string
-	meetLink    string
-	start       toml.LocalDateTime
-	end         toml.LocalDateTime
-}
-
-func NewEvent() *Event {
-	return &Event{}
-}
-
-func NewEventComplete(title string, createdBy users.User, start, end toml.LocalDateTime) *Event {
-	return &Event{title: title, createdBy: createdBy, start: start, end: end}
+	Title       string
+	CreatedBy   models.User
+	Location    string
+	Description string
+	MeetLink    string
+	Start       toml.LocalDateTime
+	End         toml.LocalDateTime
 }
 
 type Recurrence struct {
