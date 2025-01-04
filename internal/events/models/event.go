@@ -1,18 +1,21 @@
 package models
 
 import (
-	"github.com/pelletier/go-toml/v2"
+	"gorm.io/gorm"
 	"syncal/internal/users/models"
+	"time"
 )
 
 type Event struct {
+	gorm.Model
 	Title       string
-	CreatedBy   models.User
+	CreatedByID uint        // Clave foránea explícita
+	CreatedBy   models.User `gorm:"foreignKey:CreatedByID"`
 	Location    string
 	Description string
 	MeetLink    string
-	Start       toml.LocalDateTime
-	End         toml.LocalDateTime
+	Start       time.Time // Cambiado de toml.LocalDateTime a time.Time
+	End         time.Time // Cambiado de toml.LocalDateTime a time.Time
 }
 
 type Recurrence struct {
