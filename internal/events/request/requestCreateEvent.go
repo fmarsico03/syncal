@@ -13,4 +13,8 @@ type CreateEventRequest struct {
 	Description  string    `json:"description"`                      // Opcional
 	MeetLink     string    `json:"meet_link"`                        // Opcional
 	Participants []string  `json:"participants"`                     // Opcional
+	Days         []int     `json:"days"`
+	Weeks        []int     `json:"weeks"`
+	Months       []int     `json:"months"`
+	Always       bool      `json:"always"`
 }

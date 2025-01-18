@@ -14,7 +14,26 @@ func Create(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 
-	rta, _ := service.CreateEvent(req)
+	rta, err := service.CreateEvent(req)
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
 
-	c.IndentedJSON(http.StatusCreated, gin.H{"event": rta})
+	c.IndentedJSON(http.StatusCreated, gin.H{"event id": rta})
+}
+
+func Search(c *gin.Context) {
+
+}
+
+func Update(c *gin.Context) {
+
+}
+
+func Delete(c *gin.Context) {
+
+}
+
+func SearchById(c *gin.Context) {
+
 }

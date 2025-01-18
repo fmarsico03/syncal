@@ -1,42 +1,116 @@
 package service
 
 import (
+	"errors"
 	"fmt"
+	"gorm.io/gorm"
+	"syncal/database"
 	"syncal/internal/events/models"
 	"syncal/internal/events/request"
-	"syncal/internal/events/response"
-	models2 "syncal/internal/users/models"
+	modelsUser "syncal/internal/users/models"
 )
 
-func CreateEvent(req request.CreateEventRequest) (response.CreateEventResponse, models.Event) {
-	franco := models2.NewUser("Franco", "Marsico", "fmarsico03@gmail.com")
+func findUserByEmail(email string) (modelsUser.User, error) {
+	var user modelsUser.User
+	err := database.Database.Where("mail = ?", email).First(&user).Error
+	if err != nil {
+		// Manejar error de usuario no encontrado o fallo en la consulta
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return user, errors.New("user not found")
+		}
+		return user, fmt.Errorf("error retrieving user: %w", err)
+	}
+	return user, nil
+}
 
-	event := models.Event{
+func CreateEvent(req request.CreateEventRequest) (uint, error) {
+	user, err := findUserByEmail(req.EmailCreator)
+	if err != nil {
+		return 0, err
+	}
+
+	var id uint
+	if len(req.Months) > 0 && len(req.Weeks) > 0 && len(req.Days) > 0 {
+		id = CreateComplexEvent(user, req)
+	} else if len(req.Months) > 0 && len(req.Weeks) == 1 && len(req.Days) == 1 {
+		id = CreateMonthlyEvent(user, req)
+	} else if len(req.Weeks) == 1 && len(req.Days) == 1 {
+		id = CreateWeeklyEvent(user, req)
+	} else if len(req.Days) > 0 {
+		id = CreateDailyEvent(user, req)
+	} else {
+		id = CreateSimpleEvent(user, req)
+	}
+
+	return id, nil
+}
+
+func createBaseEvent(user modelsUser.User, req request.CreateEventRequest) models.Event {
+	return models.Event{
 		Title:       req.Title,
-		CreatedBy:   *franco,
-		Start:       req.Start,
-		End:         req.End,
+		CreatedBy:   user,
 		Description: req.Description,
 		Location:    req.Location,
 		MeetLink:    req.MeetLink,
+		Start:       req.Start,
+		End:         req.End,
+	}
+}
+
+func CreateSimpleEvent(user modelsUser.User, req request.CreateEventRequest) uint {
+	event := createBaseEvent(user, req)
+	database.Database.Create(&event)
+
+	return event.ID
+}
+
+func CreateDailyEvent(user modelsUser.User, req request.CreateEventRequest) uint {
+	dailyEvent := models.EventDaily{
+		Event:  createBaseEvent(user, req),
+		Days:   models.ConvertToDaysOfWeek(req.Days),
+		Always: req.Always,
 	}
 
-	fmt.Printf("Titulo: %s, Descripcion: %s, Meet: %s\n", event.Title, event.Description, event.MeetLink)
+	database.Database.Create(&dailyEvent)
+	return dailyEvent.Event.ID
+}
 
-	var participants []string
-	participants = req.Participants
-	//Logica
-	//todo Buscar en BD los participantes -> Si no existe alguno enviar ademas un msj de error
-	// O habria que ver si existe el mail? Tantear eso. Luego mapear varios objetos participantes.
+func CreateWeeklyEvent(user modelsUser.User, req request.CreateEventRequest) uint {
+	weeklyEvent := models.EventWeekly{
+		Event:  createBaseEvent(user, req),
+		Day:    models.ConvertToDaysOfWeek(req.Days)[0],
+		Week:   req.Weeks,
+		Always: req.Always,
+	}
 
-	return *response.NewCreateEventResponse(
-			event.CreatedBy.Mail(),
-			event.Description,
-			event.End,
-			event.Location,
-			event.MeetLink,
-			participants,
-			event.Start,
-			event.Title),
-		event
+	database.Database.Create(&weeklyEvent)
+	return weeklyEvent.Event.ID
+}
+
+func CreateMonthlyEvent(user modelsUser.User, req request.CreateEventRequest) uint {
+	monthlyEvent := models.EventMonthly{
+		Event:  createBaseEvent(user, req),
+		Day:    models.ConvertToDaysOfWeek(req.Days)[0],
+		Week:   req.Weeks[0],
+		Month:  req.Months,
+		Always: req.Always,
+	}
+
+	database.Database.Create(&monthlyEvent)
+	return monthlyEvent.Event.ID
+}
+
+func CreateComplexEvent(user modelsUser.User, req request.CreateEventRequest) uint {
+	recurrence := models.Recurrence{
+		Days:   models.ConvertToDaysOfWeek(req.Days),
+		Weeks:  req.Weeks,
+		Months: req.Months,
+	}
+	complexEvent := models.EventComplex{
+		Event:      createBaseEvent(user, req),
+		Recurrence: recurrence,
+	}
+
+	database.Database.Create(&complexEvent)
+	return complexEvent.Event.ID
 }
