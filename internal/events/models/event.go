@@ -16,4 +16,5 @@ type Event struct {
 	MeetLink    string
 	Start       time.Time
 	End         time.Time
+	LinkedId    uint
 }

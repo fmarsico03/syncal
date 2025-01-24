@@ -8,19 +8,24 @@ import (
 	"syncal/internal/events/models"
 	"syncal/internal/events/request"
 	modelsUser "syncal/internal/users/models"
+	"time"
 )
 
+// Validaciones
 func findUserByEmail(email string) (modelsUser.User, error) {
 	var user modelsUser.User
 	err := database.Database.Where("mail = ?", email).First(&user).Error
-	if err != nil {
-		// Manejar error de usuario no encontrado o fallo en la consulta
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return user, errors.New("user not found")
-		}
-		return user, fmt.Errorf("error retrieving user: %w", err)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return user, errors.New("user not found")
 	}
-	return user, nil
+	return user, err
+}
+
+func validateDates(startDate, endDate time.Time) error {
+	if !endDate.After(startDate) {
+		return errors.New("end date must be after start date")
+	}
+	return nil
 }
 
 func CreateEvent(req request.CreateEventRequest) (uint, error) {
@@ -28,16 +33,18 @@ func CreateEvent(req request.CreateEventRequest) (uint, error) {
 	if err != nil {
 		return 0, err
 	}
-
+	if !req.Repeat.IsValid() {
+		return 0, fmt.Errorf("invalid repeat")
+	}
 	var id uint
-	if len(req.Months) > 0 && len(req.Weeks) > 0 && len(req.Days) > 0 {
-		id = CreateComplexEvent(user, req)
-	} else if len(req.Months) > 0 && len(req.Weeks) == 1 && len(req.Days) == 1 {
-		id = CreateMonthlyEvent(user, req)
-	} else if len(req.Weeks) == 1 && len(req.Days) == 1 {
-		id = CreateWeeklyEvent(user, req)
-	} else if len(req.Days) > 0 {
-		id = CreateDailyEvent(user, req)
+	if req.Repeat.TypeOf == models.Monthly {
+		id, err = CreateMonthlyEvents(user, req)
+	} else if req.Repeat.TypeOf == models.Weekly {
+		id, err = CreateWeeklyEvents(user, req)
+	} else if req.Repeat.TypeOf == models.Daily {
+		id, err = CreateDailyEvents(user, req)
+	} else if req.Repeat.TypeOf == models.OneTime {
+		id = CreateSimpleEvent(user, req)
 	} else {
 		id = CreateSimpleEvent(user, req)
 	}
@@ -64,53 +71,50 @@ func CreateSimpleEvent(user modelsUser.User, req request.CreateEventRequest) uin
 	return event.ID
 }
 
-func CreateDailyEvent(user modelsUser.User, req request.CreateEventRequest) uint {
-	dailyEvent := models.EventDaily{
-		Event:  createBaseEvent(user, req),
-		Days:   models.ConvertToDaysOfWeek(req.Days),
-		Always: req.Always,
+func CreateRecurringEvents(user modelsUser.User, req request.CreateEventRequest, dateCalculator func(startDate, endDate time.Time, iteration int) (time.Time, time.Time)) (uint, error) {
+	var linkedId uint
+	startDate := req.Start
+	endDate := req.End
+
+	if err := validateDates(req.Start, req.End); err != nil {
+		return 0, err
 	}
 
-	database.Database.Create(&dailyEvent)
-	return dailyEvent.Event.ID
+	for i := 0; i < req.Repeat.Value; i++ {
+		newStart, newEnd := dateCalculator(startDate, endDate, i)
+
+		req.Start = newStart
+		req.End = newEnd
+
+		event := createBaseEvent(user, req)
+
+		if i == 0 {
+			if err := database.Database.Create(&event).Error; err != nil {
+				return 0, fmt.Errorf("failed to create the first event: %w", err)
+			}
+			linkedId = event.ID
+			if err := database.Database.Model(&event).Update("linked_id", linkedId).Error; err != nil {
+				return 0, fmt.Errorf("failed to update the first event with linked_id: %w", err)
+			}
+		} else {
+			event.LinkedId = linkedId
+			if err := database.Database.Create(&event).Error; err != nil {
+				return 0, fmt.Errorf("failed to create recurring event: %w", err)
+			}
+		}
+	}
+
+	return linkedId, nil
 }
 
-func CreateWeeklyEvent(user modelsUser.User, req request.CreateEventRequest) uint {
-	weeklyEvent := models.EventWeekly{
-		Event:  createBaseEvent(user, req),
-		Day:    models.ConvertToDaysOfWeek(req.Days)[0],
-		Week:   req.Weeks,
-		Always: req.Always,
-	}
-
-	database.Database.Create(&weeklyEvent)
-	return weeklyEvent.Event.ID
+func CreateMonthlyEvents(user modelsUser.User, req request.CreateEventRequest) (uint, error) {
+	return CreateRecurringEvents(user, req, calculateMonthlyDates)
 }
 
-func CreateMonthlyEvent(user modelsUser.User, req request.CreateEventRequest) uint {
-	monthlyEvent := models.EventMonthly{
-		Event:  createBaseEvent(user, req),
-		Day:    models.ConvertToDaysOfWeek(req.Days)[0],
-		Week:   req.Weeks[0],
-		Month:  req.Months,
-		Always: req.Always,
-	}
-
-	database.Database.Create(&monthlyEvent)
-	return monthlyEvent.Event.ID
+func CreateWeeklyEvents(user modelsUser.User, req request.CreateEventRequest) (uint, error) {
+	return CreateRecurringEvents(user, req, calculateWeeklyDates)
 }
 
-func CreateComplexEvent(user modelsUser.User, req request.CreateEventRequest) uint {
-	recurrence := models.Recurrence{
-		Days:   models.ConvertToDaysOfWeek(req.Days),
-		Weeks:  req.Weeks,
-		Months: req.Months,
-	}
-	complexEvent := models.EventComplex{
-		Event:      createBaseEvent(user, req),
-		Recurrence: recurrence,
-	}
-
-	database.Database.Create(&complexEvent)
-	return complexEvent.Event.ID
+func CreateDailyEvents(user modelsUser.User, req request.CreateEventRequest) (uint, error) {
+	return CreateRecurringEvents(user, req, calculateDailyDates)
 }
