@@ -1,4 +1,4 @@
-package models
+package utilRepeatType
 
 type RepeatType string
 

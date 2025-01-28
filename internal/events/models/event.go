@@ -3,6 +3,7 @@ package models
 import (
 	"gorm.io/gorm"
 	"syncal/internal/users/models"
+	"syncal/internal/utils/utilRepeatType"
 	"time"
 )
 
@@ -17,4 +18,5 @@ type Event struct {
 	Start       time.Time
 	End         time.Time
 	LinkedId    uint
+	Type        utilRepeatType.RepeatType
 }
